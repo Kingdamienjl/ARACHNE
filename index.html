@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ARACHNE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#0a0a0f;color:#e0e0e0;font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px}
+#header{background:#111;border-bottom:2px solid #f22;padding:6px;text-align:center}
+#header h1{color:#f22;font-size:18px;letter-spacing:3px;text-shadow:0 0 10px #f22}
+#tabs{display:flex;background:#15151a;border-bottom:1px solid #333}
+.tab{flex:1;padding:10px;text-align:center;color:#888;cursor:pointer;font-size:13px;border-right:1px solid #222}
+.tab.active{color:#f22;border-bottom:2px solid #f22;background:#1a1a20}
+#content{flex:1;overflow:hidden;position:relative}
+.page{display:none;height:100%;overflow-y:auto;padding:10px}
+.page.active{display:block}
+/* FACE page */
+#face-wrap{display:flex;flex-direction:column;align-items:center;padding:10px}
+#spider{width:140px;height:140px;filter:drop-shadow(0 0 15px rgba(255,34,34,.4))}
+#spider.scanning{animation:pulse 1.2s infinite}
+#spider.attacking{animation:shake .3s infinite;filter:drop-shadow(0 0 25px rgba(255,34,34,.9))}
+#spider.success{animation:bounce .6s infinite}
+#spider.bored{filter:grayscale(60%) brightness(.6)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-3px,2px)}75%{transform:translate(3px,-2px)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+#mood{margin:8px 0;color:#f66;font-size:16px;text-align:center;min-height:24px}
+#mood-detail{color:#888;font-size:12px;text-align:center;margin-bottom:10px;min-height:36px;line-height:1.5}
+.btn{background:#1a1a22;border:2px solid #f22;color:#f66;font-family:inherit;font-size:16px;padding:14px;border-radius:8px;text-align:center;cursor:pointer;user-select:none;margin:4px 0}
+.btn:active{background:#f22;color:#000}
+.btn.green{border-color:#2f6;color:#2f6}
+.btn.green:active{background:#2f6;color:#000}
+.btn.blue{border-color:#28f;color:#28f}
+.btn.blue:active{background:#28f;color:#000}
+.btn.on{background:#f22;color:#000}
+.btn.green.on{background:#2f6;color:#000}
+.btn-row{display:flex;gap:8px}.btn-row .btn{flex:1}
+/* FEED page */
+#feed{background:#0d0d12;border:1px solid #333;border-radius:6px;padding:8px;height:100%;overflow-y:auto;font-size:12px;line-height:1.6}
+.feed-line{margin:2px 0;padding:2px 4px;border-left:2px solid #333}
+.feed-line.scan{border-color:#28f;color:#8af}
+.feed-line.attack{border-color:#f22;color:#f88}
+.feed-line.capture{border-color:#2f6;color:#8f8}
+.feed-line.info{border-color:#666;color:#aaa}
+.feed-time{color:#555;font-size:10px}
+/* NETS page */
+.net{background:#111;border:1px solid #333;border-radius:6px;padding:8px;margin:6px 0}
+.net .ssid{color:#fff;font-size:15px;font-weight:bold}
+.net .bssid{color:#2f6;font-size:11px;font-family:monospace}
+.net .meta{color:#888;font-size:12px;margin-top:4px}
+.net .hs{color:#2f6;font-weight:bold}
+.net.target{border-color:#f22}
+/* STATS page */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:#111;border:1px solid #333;border-radius:6px;padding:12px;text-align:center}
+.stat .val{font-size:24px;color:#f22;font-weight:bold}
+.stat .lbl{font-size:11px;color:#888;margin-top:4px}
+#allies{margin-top:10px}
+.ally{background:#111;border:1px solid #2f6;border-radius:6px;padding:8px;margin:6px 0}
+.ally .name{color:#2f6;font-weight:bold}
+#statusbar{background:#111;border-top:2px solid #f22;padding:5px 10px;font-size:11px;color:#888;display:flex;justify-content:space-between}
+#target-box{background:#111;border:2px solid #2f6;border-radius:6px;padding:8px;margin:8px 0;text-align:center}
+#target-box .bssid{font-size:16px;color:#2f6;font-family:monospace;font-weight:bold}
+#target-box .lbl{font-size:10px;color:#888}
+</style>
+</head>
+<body>
+<div id="header"><h1><span id="mood-hdr">--</span> ARACHNE</h1></div>
+<div id="tabs">
+<div class="tab active" data-tab="face">FACE</div>
+<div class="tab" data-tab="feed">FEED</div><div class="tab" data-tab="nets">NETS <span id="net-count"></span></div>
+
+<div class="tab" data-tab="stats">STATS</div>
+<div class="tab" data-tab="deauth">DEAUTH</div>
+<div class="tab" data-tab="track">TRACK</div>
+</div>
+<div id="content">
+<!-- FACE -->
+<div class="page active" id="page-face">
+<div id="face-wrap">
+<img id="spider" src="/arachne.png" alt="Arachne">
+<div id="mood">Waking up...</div>
+<div id="mood-detail">Initializing...</div>
+<div class="btn-row" style="width:100%">
+<div class="btn green" id="b-cap" onclick="toggleCap()">? HUNT</div>
+<div class="btn" id="b-hs" onclick="toggleHS()">?? HOTSPOT</div>
+</div>
+<div class="btn blue" id="b-mode" onclick="toggleMode()" style="width:100%">?? MODE: AP</div>
+<div id="target-box">
+<div class="lbl">?? PRIMARY TARGET � set CSticks to this BSSID</div>
+<div class="bssid" id="t-bssid">--</div>
+<div class="lbl" id="t-info"></div>
+</div>
+</div>
+</div>
+<!-- FEED -->
+<div class="page" id="page-feed"><div id="feed"></div></div>
+<!-- NETS -->
+<div class="page" id="page-nets"><div id="netlist">No networks yet. Hit HUNT.</div></div>
+
+<!-- DEAUTH -->
+<div class="page" id="page-deauth">
+<div style="color:#f22;font-size:14px;margin-bottom:8px">DEAUTH CONTROL</div>
+<div class="btn green" id="b-deauth-all" onclick="toggleDeauthAll()">DEAUTH ALL TARGETS</div>
+<div style="color:#888;font-size:11px;margin:8px 0">Allied deauth units:</div>
+<div id="deauth-allies"><div style="color:#666;font-size:12px">Scanning...</div></div>
+</div>
+<!-- TRACK -->
+<div class="page" id="page-track">
+<div style="color:#2f6;font-size:14px;margin-bottom:8px">SIGNAL TRACKER</div>
+<div id="track-list"></div>
+<div id="track-active" style="display:none">
+<div style="text-align:center;margin:12px 0">
+<div id="track-name" style="font-size:16px;color:#fff"></div>
+<div id="track-bssid" style="font-size:11px;color:#2f6;font-family:monospace"></div>
+<div id="track-rssi" style="font-size:42px;color:#2f6;font-weight:bold">--</div>
+<div style="font-size:11px;color:#888">dBm (closer to 0 = closer)</div>
+<div id="track-bar" style="height:20px;background:#222;border-radius:10px;margin:12px 0;overflow:hidden"><div id="track-fill" style="height:100%;width:0%;background:#2f6;transition:width 0.5s"></div></div>
+<div id="track-hint" style="font-size:13px;color:#888">Walk around</div>
+</div>
+<div class="btn" onclick="stopTrack()" style="margin-top:10px">STOP</div>
+</div>
+</div>
+<!-- STATS -->
+<div class="page" id="page-stats">
+<div class="stat-grid">
+<div class="stat"><div class="val" id="s-aps">0</div><div class="lbl">Networks Seen</div></div>
+<div class="stat"><div class="val" id="s-hs">0</div><div class="lbl">Handshakes</div></div>
+<div class="stat"><div class="val" id="s-deauth">0</div><div class="lbl">Deauths Sent</div></div>
+<div class="stat"><div class="val" id="s-uptime">0m</div><div class="lbl">Hunt Time</div></div>
+</div>
+<div id="allies"><div style="color:#2f6;font-size:13px;margin:10px 0 6px">?? ALLIED DEAUTH UNITS</div><div id="ally-list"><div style="color:#666;font-size:12px">No allies detected. Turn on your CSticks.</div></div></div>
+<div class="btn" onclick="location.href='https://192.168.4.1/'" style="margin-top:12px">?? RASPYJACK</div>
+</div>
+</div>
+<div id="statusbar"><span id="sb-mode">--</span><span id="sb-wlan">--</span><span id="sb-rj">--</span></div>
+<script>
+async function api(p,m){
+  let r = await fetch(p,{method:m||'GET'});
+  return r.json();
+}
+let deauthAll=false, trackTarget=null;
+function showTab(n,el){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  if(el) el.classList.add('active');
+  var pg=document.getElementById('page-'+n);
+  if(pg) pg.classList.add('active');
+}
+async function toggleHunt(){
+  let b=document.getElementById('b-cap');
+  let on=b.classList.contains('on');
+  await api('/api/capture/'+(on?'stop':'start'),'POST');
+  b.classList.toggle('on',!on);
+  b.textContent=!on?'STOP HUNT':'HUNT';
+}
+async function toggleHs(){
+  let b=document.getElementById('b-hs');
+  let on=b.classList.contains('on');
+  await api('/api/hotspot/'+(on?'off':'on'),'POST');
+  b.classList.toggle('on',!on);
+}
+async function toggleMode(){
+  await api('/api/wlan0/toggle','POST');
+}
+async function toggleDeauthAll(){
+  deauthAll=!deauthAll;
+  await api('/api/deauth/'+(deauthAll?'start':'stop'),'POST');
+  let b=document.getElementById('b-deauth-all');
+  if(b){b.classList.toggle('on',deauthAll);b.textContent=deauthAll?'STOP DEAUTH':'DEAUTH ALL TARGETS';}
+}
+function startTrack(bssid,essid){
+  trackTarget=bssid;
+  document.getElementById('track-active').style.display='block';
+  document.getElementById('track-name').textContent=essid||'(hidden)';
+  document.getElementById('track-bssid').textContent=bssid;
+}
+function stopTrack(){
+  trackTarget=null;
+  document.getElementById('track-active').style.display='none';
+}
+async function refresh(){
+  try{
+    let s=await api('/api/status');
+    document.getElementById('mood').textContent=s.mood_text||'??';var mh=document.getElementById('mood-hdr');if(mh)mh.textContent=s.mood_text||'??';
+    document.getElementById('mood-detail').innerHTML=s.mood_detail||'';
+    document.getElementById('spider').className=s.mood||'';
+    var nc=document.getElementById('net-count');
+    if(nc) nc.textContent='('+(s.ap_count||0)+')';
+    var fl=document.getElementById('feed');
+    if(fl&&s.feed){fl.innerHTML=s.feed.map(function(e){return '<div class="fe"><span class="ft">'+e.time+'</span> '+e.msg+'</div>'}).join('');fl.scrollTop=fl.scrollHeight;}
+    var nl=document.getElementById('netlist');
+    if(nl){
+      if(s.aps&&s.aps.length){
+        nl.innerHTML=s.aps.map(function(a){
+          return '<div class="net"><div class="ssid">'+(a.essid||'(hidden)')+'</div><div class="bssid">'+a.bssid+'</div><div class="meta">CH'+(a.channel||'?')+' | '+(a.signal!=null?a.signal+'dBm':'--')+' | '+(a.clients||0)+' clients</div></div>';
+        }).join('');
+      } else {nl.innerHTML='<div style="color:#666">No networks yet. Hit HUNT.</div>';}
+    }
+    var da=document.getElementById('deauth-allies');
+    if(da){
+      if(s.allies&&s.allies.length){
+        da.innerHTML=s.allies.map(function(a){return '<div class="ally"><div class="name">'+a.name+'</div><div style="font-size:11px;color:#888">'+a.mac+'</div><div style="color:#2f6;font-size:11px">ACTIVE</div></div>'}).join('');
+      } else {da.innerHTML='<div style="color:#666;font-size:12px">No ESP32 allies. Turn on CSticks.</div>';}
+    }
+    var tl=document.getElementById('track-list');
+    if(tl&&!trackTarget&&s.aps&&s.aps.length){
+      tl.innerHTML=s.aps.map(function(a){
+        var en=(a.essid||'').replace(/'/g,'');
+        return '<div class="net"><div class="ssid">'+(a.essid||'(hidden)')+'</div><div class="bssid">'+a.bssid+'</div><div class="btn blue" style="margin-top:6px;padding:8px;font-size:13px" onclick="startTrack(\''+a.bssid+'\',\''+en+'\')">TRACK SIGNAL</div></div>';
+      }).join('');
+    }
+    if(trackTarget&&s.aps){
+      var t=s.aps.find(function(a){return a.bssid===trackTarget});
+      if(t&&t.signal!=null){
+        var rssi=parseInt(t.signal);
+        document.getElementById('track-rssi').textContent=rssi;
+        var pct=Math.min(100,Math.max(0,(rssi+100)*2));
+        document.getElementById('track-fill').style.width=pct+'%';
+        document.getElementById('track-hint').textContent=rssi>-40?'VERY CLOSE!':rssi>-60?'Getting warmer...':rssi>-75?'Keep walking...':'Far - keep moving';
+      }
+    }
+  }catch(e){console.log('refresh err',e);}
+}
+document.querySelectorAll(".tab[data-tab]").forEach(function(t){t.addEventListener("click",function(){showTab(t.getAttribute("data-tab"),t);});});
+setInterval(refresh,2000);refresh();
+</script>
+</body>
+</html>
